@@ -13,6 +13,7 @@
   },
   "scripts": {
     "prepare:icon": "node scripts/make-icon.mjs",
+    "test": "node --test",
     "verify": "node scripts/verify.mjs",
     "start": "npm run prepare:icon && electron .",
     "build": "npm run prepare:icon && electron-builder --linux deb AppImage --x64",

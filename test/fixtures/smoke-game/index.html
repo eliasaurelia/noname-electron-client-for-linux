@@ -1,0 +1,12 @@
+<!doctype html>
+<meta charset="utf-8" />
+<title>runtime smoke</title>
+<script type="module">
+  const expected = window.process.env.NONAME_GAME_DIR;
+  const actual = window.__dirname;
+  console.log(`NONAME_RUNTIME_DIR=${actual}`);
+  if (actual !== expected) {
+    throw new Error(`Expected window.__dirname to be ${expected}, got ${actual}`);
+  }
+  document.body.textContent = "runtime-ok";
+</script>
