@@ -1,0 +1,5 @@
+This packaging project is distributed under GPL-3.0-or-later.
+
+The Noname game content is not vendored in this repository by default. If you
+place upstream game files under ./game before building, keep the upstream
+license files with those files and comply with the upstream project's terms.
