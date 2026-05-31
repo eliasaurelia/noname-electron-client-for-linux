@@ -103,6 +103,10 @@ ipcMain.handle("choose-game-dir", async () => {
   return { ok: true, gameDir: target };
 });
 
+ipcMain.on("get-game-dir", (event) => {
+  event.returnValue = currentGameDir && isValidGameDirectory(currentGameDir) ? currentGameDir : "";
+});
+
 ipcMain.handle("open-game-dir", async () => {
   const dir = currentGameDir || getUserGameDir();
   await fs.promises.mkdir(dir, { recursive: true });
