@@ -9,6 +9,9 @@ current stable Electron line, local user-data storage, and Linux package output.
 - Electron: `42.3.0`
 - Targets: Debian package (`.deb`) and AppImage (`.AppImage`)
 - Tested host target: Debian GNU/Linux 13 `trixie`, x64
+- Runtime fix in `1.0.1`: imported `libnoname/noname` release files are exposed
+  to the renderer as `window.__dirname`, so the upstream Node runtime reads from
+  the imported game directory instead of the packaged Electron `app.asar`.
 
 ## Build
 
@@ -44,3 +47,14 @@ At launch, the client resolves the game directory in this order:
 
 The app keeps writes out of `/opt`, so Debian packages can be installed
 system-wide without making the game directory read-only for the player.
+
+## Latest libnoname release notes
+
+Recent `libnoname/noname` releases use a Vite-built entry, a module service
+worker, and Node runtime helpers that expect `__dirname` to point at the game
+root. The client serves the imported directory over local HTTP and exposes that
+same directory through preload before the game scripts run.
+
+Do not patch imported release files to work around startup problems. Fix the
+Electron shell, rebuild, and re-import only when the upstream release itself
+changes.
