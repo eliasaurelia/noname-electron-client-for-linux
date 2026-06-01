@@ -36,3 +36,44 @@ test("preload exposes the resolved Noname game directory as window.__dirname", (
   assert.deepEqual(calls, ["get-game-dir"]);
   assert.equal(window.__dirname, gameDir);
 });
+
+test("preload exposes Node globals required by the upstream entry loader", () => {
+  const gameDir = "/tmp/noname-game";
+  const processGlobal = {
+    platform: "linux",
+    versions: {
+      electron: "42.3.0"
+    }
+  };
+  const bufferGlobal = function Buffer() {};
+  const pathModule = {};
+  const window = {
+    addEventListener() {}
+  };
+  const electron = {
+    ipcRenderer: {
+      invoke() {},
+      sendSync() {
+        return gameDir;
+      }
+    }
+  };
+
+  function rendererRequire(moduleId) {
+    if (moduleId === "electron") return electron;
+    if (moduleId === "path") return pathModule;
+    throw new Error(`Unexpected module: ${moduleId}`);
+  }
+
+  vm.runInNewContext(fs.readFileSync(preloadPath, "utf8"), {
+    Buffer: bufferGlobal,
+    process: processGlobal,
+    require: rendererRequire,
+    window
+  }, { filename: preloadPath });
+
+  assert.equal(window.require, rendererRequire);
+  assert.equal(window.require("path"), pathModule);
+  assert.equal(window.process, processGlobal);
+  assert.equal(window.Buffer, bufferGlobal);
+});
