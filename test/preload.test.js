@@ -46,6 +46,7 @@ test("preload exposes Node globals required by the upstream entry loader", () =>
     }
   };
   const bufferGlobal = function Buffer() {};
+  const fsModule = {};
   const pathModule = {};
   const window = {
     addEventListener() {}
@@ -61,6 +62,7 @@ test("preload exposes Node globals required by the upstream entry loader", () =>
 
   function rendererRequire(moduleId) {
     if (moduleId === "electron") return electron;
+    if (moduleId === "fs") return fsModule;
     if (moduleId === "path") return pathModule;
     throw new Error(`Unexpected module: ${moduleId}`);
   }
@@ -76,4 +78,31 @@ test("preload exposes Node globals required by the upstream entry loader", () =>
   assert.equal(window.require("path"), pathModule);
   assert.equal(window.process, processGlobal);
   assert.equal(window.Buffer, bufferGlobal);
+});
+
+test("preload hides sandboxed require when core Node modules are unavailable", () => {
+  const window = {
+    require() {},
+    addEventListener() {}
+  };
+  const electron = {
+    ipcRenderer: {
+      invoke() {},
+      sendSync() {
+        return "/tmp/noname-game";
+      }
+    }
+  };
+
+  function sandboxRequire(moduleId) {
+    if (moduleId === "electron") return electron;
+    throw new Error(`module not found: ${moduleId}`);
+  }
+
+  vm.runInNewContext(fs.readFileSync(preloadPath, "utf8"), {
+    require: sandboxRequire,
+    window
+  }, { filename: preloadPath });
+
+  assert.equal(window.require, undefined);
 });
