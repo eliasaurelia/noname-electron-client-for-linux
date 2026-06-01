@@ -19,6 +19,23 @@ test("static server returns 404 for a directory without an entry file", async (t
   assert.equal(response.body, "Not found");
 });
 
+test("static server exposes browser runtime file checks", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "noname-static-"));
+  await fs.mkdir(path.join(root, "extension"), { recursive: true });
+  await fs.writeFile(path.join(root, "noname.js"), "export {};", "utf8");
+
+  const fileResponse = await serve(root, "/checkFile?fileName=noname.js");
+  const dirResponse = await serve(root, "/checkDir?dir=extension");
+  const missingResponse = await serve(root, "/checkFile?fileName=missing.js");
+
+  assert.equal(fileResponse.statusCode, 200);
+  assert.deepEqual(JSON.parse(fileResponse.body), { success: true, data: "file" });
+  assert.equal(dirResponse.statusCode, 200);
+  assert.deepEqual(JSON.parse(dirResponse.body), { success: true, data: "directory" });
+  assert.equal(missingResponse.statusCode, 200);
+  assert.deepEqual(JSON.parse(missingResponse.body), { success: true, data: "none" });
+});
+
 function serve(root, url) {
   return new Promise((resolve) => {
     const response = {
