@@ -58,6 +58,8 @@ function pickEntryFile(dir) {
 
 function serveStaticFile(rootDir, request, response) {
   const url = new URL(request.url || "/", "http://127.0.0.1");
+  if (handleFileApi(rootDir, request, response, url)) return;
+
   let pathname = decodeURIComponent(url.pathname);
   if (pathname === "/") pathname = `/${pickEntryFile(rootDir) || "index.html"}`;
 
@@ -86,6 +88,125 @@ function serveStaticFile(rootDir, request, response) {
 
     serveFile(requestedPath, response);
   });
+}
+
+function handleFileApi(rootDir, request, response, url) {
+  switch (url.pathname) {
+    case "/checkFile":
+      sendPathType(rootDir, response, url.searchParams.get("fileName"));
+      return true;
+    case "/checkDir":
+      sendPathType(rootDir, response, url.searchParams.get("dir"));
+      return true;
+    case "/readFile":
+      readFile(rootDir, response, url.searchParams.get("fileName"), false);
+      return true;
+    case "/readFileAsText":
+      readFile(rootDir, response, url.searchParams.get("fileName"), true);
+      return true;
+    case "/writeFile":
+      writeFile(rootDir, request, response);
+      return true;
+    case "/removeFile":
+      removeFile(rootDir, response, url.searchParams.get("fileName"));
+      return true;
+    case "/getFileList":
+      getFileList(rootDir, response, url.searchParams.get("dir"));
+      return true;
+    case "/createDir":
+      createDir(rootDir, response, url.searchParams.get("dir"));
+      return true;
+    case "/removeDir":
+      removeDir(rootDir, response, url.searchParams.get("dir"));
+      return true;
+    default:
+      return false;
+  }
+}
+
+async function sendPathType(rootDir, response, resourcePath) {
+  try {
+    sendJson(response, {
+      success: true,
+      data: await getPathType(resolveResourcePath(rootDir, resourcePath))
+    });
+  } catch (error) {
+    sendJson(response, { success: false, errorMsg: error.message });
+  }
+}
+
+async function readFile(rootDir, response, resourcePath, asText) {
+  try {
+    const filePath = resolveResourcePath(rootDir, resourcePath);
+    const data = await fs.promises.readFile(filePath, asText ? "utf8" : undefined);
+    sendJson(response, {
+      success: true,
+      data: asText ? data : data.toString("base64")
+    });
+  } catch (error) {
+    sendJson(response, { success: false, errorMsg: error.message });
+  }
+}
+
+async function writeFile(rootDir, request, response) {
+  try {
+    const body = JSON.parse(await readRequestBody(request) || "{}");
+    const filePath = resolveResourcePath(rootDir, body.path);
+    const data = typeof body.data === "string" ? body.data : Uint8Array.from(body.data || []);
+
+    await fs.promises.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.promises.writeFile(filePath, data);
+    sendJson(response, { success: true });
+  } catch (error) {
+    sendJson(response, { success: false, errorMsg: error.message });
+  }
+}
+
+async function removeFile(rootDir, response, resourcePath) {
+  try {
+    await fs.promises.rm(resolveResourcePath(rootDir, resourcePath), { force: true });
+    sendJson(response, { success: true });
+  } catch (error) {
+    sendJson(response, { success: false, errorMsg: error.message });
+  }
+}
+
+async function getFileList(rootDir, response, resourcePath) {
+  try {
+    const entries = await fs.promises.readdir(resolveResourcePath(rootDir, resourcePath), {
+      withFileTypes: true
+    });
+    sendJson(response, {
+      success: true,
+      data: {
+        folders: entries.filter((entry) => entry.isDirectory()).map((entry) => entry.name),
+        files: entries.filter((entry) => entry.isFile()).map((entry) => entry.name)
+      }
+    });
+  } catch (error) {
+    sendJson(response, { success: false, errorMsg: error.message });
+  }
+}
+
+async function createDir(rootDir, response, resourcePath) {
+  try {
+    await fs.promises.mkdir(resolveResourcePath(rootDir, resourcePath), { recursive: true });
+    sendJson(response, { success: true });
+  } catch (error) {
+    sendJson(response, { success: false, errorMsg: error.message });
+  }
+}
+
+async function removeDir(rootDir, response, resourcePath) {
+  try {
+    await fs.promises.rm(resolveResourcePath(rootDir, resourcePath), {
+      recursive: true,
+      force: true
+    });
+    sendJson(response, { success: true });
+  } catch (error) {
+    sendJson(response, { success: false, errorMsg: error.message });
+  }
 }
 
 function serveFile(filePath, response) {
@@ -118,6 +239,57 @@ function serveFile(filePath, response) {
       sendText(response, 500, "Read error");
     });
   });
+}
+
+async function getPathType(filePath) {
+  try {
+    const stat = await fs.promises.stat(filePath);
+    if (stat.isFile()) return "file";
+    if (stat.isDirectory()) return "directory";
+    return "none";
+  } catch (error) {
+    if (error.code === "ENOENT" || error.code === "EACCES") return "none";
+    throw error;
+  }
+}
+
+function resolveResourcePath(rootDir, resourcePath) {
+  const requested = String(resourcePath || "").replace(/\\/g, "/");
+  const resolvedRoot = path.resolve(rootDir);
+  const resolved = path.resolve(resolvedRoot, requested);
+
+  if (resolved !== resolvedRoot && !resolved.startsWith(resolvedRoot + path.sep)) {
+    throw new Error("Path is outside the game directory.");
+  }
+
+  return resolved;
+}
+
+function readRequestBody(request) {
+  if (typeof request.on !== "function") return Promise.resolve("");
+
+  return new Promise((resolve, reject) => {
+    let body = "";
+    request.on("data", (chunk) => {
+      body += chunk;
+    });
+    request.once("end", () => resolve(body));
+    request.once("error", reject);
+  });
+}
+
+function sendJson(response, payload) {
+  if (response.headersSent) {
+    response.end();
+    return;
+  }
+
+  response.writeHead(200, {
+    "Content-Type": "application/json; charset=utf-8",
+    "Cache-Control": "no-store",
+    "Access-Control-Allow-Origin": "*"
+  });
+  response.end(JSON.stringify(payload));
 }
 
 async function findFreePort(startPort) {
@@ -158,6 +330,7 @@ module.exports = {
   createStaticServer,
   isValidGameDirectory,
   pickEntryFile,
+  resolveResourcePath,
   serveFile,
   serveStaticFile,
   startStaticServer
