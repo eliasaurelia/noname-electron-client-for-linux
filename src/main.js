@@ -1,40 +1,21 @@
 "use strict";
 
 const fs = require("node:fs");
-const http = require("node:http");
-const net = require("node:net");
 const os = require("node:os");
 const path = require("node:path");
 const { pathToFileURL } = require("node:url");
 
 const { app, BrowserWindow, Menu, dialog, ipcMain, shell } = require("electron");
 const remoteMain = require("@electron/remote/main");
+const {
+  START_PORT,
+  isValidGameDirectory,
+  pickEntryFile,
+  startStaticServer: startLocalStaticServer
+} = require("./static-server");
 
 const APP_NAME = "无名杀";
 const APP_DIR_NAME = "noname-electron";
-const START_PORT = 17890;
-const GAME_ENTRY_FILES = ["index.html", "app.html"];
-const MIME_TYPES = new Map([
-  [".html", "text/html; charset=utf-8"],
-  [".js", "text/javascript; charset=utf-8"],
-  [".mjs", "text/javascript; charset=utf-8"],
-  [".cjs", "text/javascript; charset=utf-8"],
-  [".css", "text/css; charset=utf-8"],
-  [".json", "application/json; charset=utf-8"],
-  [".wasm", "application/wasm"],
-  [".png", "image/png"],
-  [".jpg", "image/jpeg"],
-  [".jpeg", "image/jpeg"],
-  [".gif", "image/gif"],
-  [".webp", "image/webp"],
-  [".svg", "image/svg+xml"],
-  [".ico", "image/x-icon"],
-  [".mp3", "audio/mpeg"],
-  [".ogg", "audio/ogg"],
-  [".wav", "audio/wav"],
-  [".mp4", "video/mp4"],
-  [".txt", "text/plain; charset=utf-8"]
-]);
 
 let mainWindow = null;
 let server = null;
@@ -166,7 +147,7 @@ async function loadGameWindow() {
   }
 
   const port = await startStaticServer(currentGameDir);
-  const entry = pickEntryFile(currentGameDir);
+  const entry = pickEntryFile(currentGameDir) || "index.html";
   await mainWindow.loadURL(`http://127.0.0.1:${port}/${entry}`);
 }
 
@@ -283,98 +264,15 @@ function getBundledGameDir() {
   return path.resolve(__dirname, "..", "game");
 }
 
-function isValidGameDirectory(dir) {
-  if (!dir || !fs.existsSync(dir)) return false;
-  return GAME_ENTRY_FILES.some((file) => fs.existsSync(path.join(dir, file)));
-}
-
-function pickEntryFile(dir) {
-  return GAME_ENTRY_FILES.find((file) => fs.existsSync(path.join(dir, file))) || "index.html";
-}
-
 async function startStaticServer(rootDir) {
   if (server) {
     server.close();
     server = null;
   }
 
-  const port = await findFreePort(START_PORT);
-  server = http.createServer((request, response) => {
-    serveStaticFile(rootDir, request, response);
-  });
-
-  await new Promise((resolve, reject) => {
-    server.once("error", reject);
-    server.listen(port, "127.0.0.1", resolve);
-  });
-
-  return port;
-}
-
-function serveStaticFile(rootDir, request, response) {
-  const url = new URL(request.url || "/", "http://127.0.0.1");
-  let pathname = decodeURIComponent(url.pathname);
-  if (pathname === "/") pathname = `/${pickEntryFile(rootDir)}`;
-
-  const requestedPath = path.normalize(path.join(rootDir, pathname));
-  if (!requestedPath.startsWith(path.normalize(rootDir + path.sep))) {
-    response.writeHead(403);
-    response.end("Forbidden");
-    return;
-  }
-
-  fs.stat(requestedPath, (statError, stat) => {
-    if (statError) {
-      response.writeHead(404);
-      response.end("Not found");
-      return;
-    }
-
-    if (stat.isDirectory()) {
-      const entry = pickEntryFile(requestedPath);
-      serveFile(path.join(requestedPath, entry), response);
-      return;
-    }
-
-    serveFile(requestedPath, response);
-  });
-}
-
-function serveFile(filePath, response) {
-  const contentType = MIME_TYPES.get(path.extname(filePath).toLowerCase()) || "application/octet-stream";
-  const stream = fs.createReadStream(filePath);
-
-  stream.once("error", () => {
-    response.writeHead(500);
-    response.end("Read error");
-  });
-
-  response.writeHead(200, {
-    "Content-Type": contentType,
-    "Cache-Control": "no-store",
-    "Cross-Origin-Opener-Policy": "same-origin",
-    "Cross-Origin-Embedder-Policy": "require-corp",
-    "Access-Control-Allow-Origin": "*"
-  });
-  stream.pipe(response);
-}
-
-async function findFreePort(startPort) {
-  for (let port = startPort; port < startPort + 100; port += 1) {
-    if (await canListen(port)) return port;
-  }
-  throw new Error(`No free localhost port found from ${startPort}`);
-}
-
-function canListen(port) {
-  return new Promise((resolve) => {
-    const probe = net.createServer();
-    probe.once("error", () => resolve(false));
-    probe.once("listening", () => {
-      probe.close(() => resolve(true));
-    });
-    probe.listen(port, "127.0.0.1");
-  });
+  const result = await startLocalStaticServer(rootDir, START_PORT);
+  server = result.server;
+  return result.port;
 }
 
 async function copyDirectory(source, destination) {
