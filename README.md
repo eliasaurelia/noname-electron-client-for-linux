@@ -9,6 +9,10 @@ current stable Electron line, local user-data storage, and Linux package output.
 - Electron: `42.3.0`
 - Targets: Debian package (`.deb`) and AppImage (`.AppImage`)
 - Tested host target: Debian GNU/Linux 13 `trixie`, x64
+- Runtime fix in `1.0.4`: preload now hides Electron's sandbox-limited
+  `require` when it cannot load core Node modules, and the local HTTP server
+  provides the file APIs used by the upstream browser initializer on later
+  launches.
 - Runtime fix in `1.0.3`: the local HTTP server now returns a single
   `404/500` response for missing or unreadable files, preventing
   `ERR_HTTP_HEADERS_SENT` crashes in the Electron main process.
