@@ -1,6 +1,6 @@
 {
   "name": "noname-electron-debian",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Debian 13 Electron client for Noname built against the latest stable Electron line.",
   "main": "src/main.js",
   "private": true,
