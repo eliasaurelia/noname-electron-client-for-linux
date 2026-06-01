@@ -12,7 +12,26 @@ function exposeWindowGlobal(name, value, shouldExpose) {
   }
 }
 
-exposeWindowGlobal("require", require, typeof window.require !== "function");
+function getUsableNodeRequire(candidate) {
+  if (typeof candidate !== "function") return null;
+
+  try {
+    const fsModule = candidate("fs");
+    const pathModule = candidate("path");
+    if (!fsModule || !pathModule) return null;
+    return candidate;
+  } catch {
+    return null;
+  }
+}
+
+const nodeRequire = getUsableNodeRequire(require) || getUsableNodeRequire(window.require);
+if (nodeRequire) {
+  exposeWindowGlobal("require", nodeRequire, window.require !== nodeRequire);
+} else if (typeof window.require === "function") {
+  exposeWindowGlobal("require", undefined, true);
+}
+
 exposeWindowGlobal(
   "process",
   typeof process !== "undefined" ? process : undefined,
