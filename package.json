@@ -34,6 +34,7 @@
     "productName": "无名杀",
     "copyright": "Copyright © 2026",
     "asar": true,
+    "beforeBuild": "scripts/before-build.cjs",
     "directories": {
       "output": "release",
       "buildResources": "assets"
@@ -53,6 +54,13 @@
         "filter": [
           "**/*",
           "!README.md"
+        ]
+      },
+      {
+        "from": "node_modules/@electron/remote",
+        "to": "node_modules/@electron/remote",
+        "filter": [
+          "**/*"
         ]
       }
     ],
