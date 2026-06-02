@@ -5,8 +5,8 @@ const root = path.resolve(import.meta.dirname, "..");
 const pkg = JSON.parse(await fs.promises.readFile(path.join(root, "package.json"), "utf8"));
 
 const errors = [];
-if (pkg.devDependencies.electron !== "42.3.0") {
-  errors.push(`electron must be pinned to 42.3.0, got ${pkg.devDependencies.electron}`);
+if (pkg.devDependencies.electron !== "42.3.1") {
+  errors.push(`electron must be pinned to 42.3.1, got ${pkg.devDependencies.electron}`);
 }
 
 const targets = pkg.build?.linux?.target?.flatMap((target) => target.target ?? target) ?? [];
