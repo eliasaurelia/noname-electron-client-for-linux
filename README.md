@@ -10,6 +10,8 @@ current stable Electron line, local user-data storage, and Linux package output.
 - electron-builder: `26.8.1`
 - Targets: Debian package (`.deb`) and AppImage (`.AppImage`)
 - Tested host target: Debian GNU/Linux 13 `trixie`, x64
+- Runtime config in `1.0.6`: Electron command-line flags can be loaded from
+  the per-user config file without rebuilding the package.
 - Dependency update in `1.0.6`: Electron was updated to the latest stable
   `42.3.3`.
 - Dependency update in `1.0.5`: Electron was updated to the latest stable
@@ -64,6 +66,22 @@ At launch, the client resolves the game directory in this order:
 
 The app keeps writes out of `/opt`, so Debian packages can be installed
 system-wide without making the game directory read-only for the player.
+
+## Electron flags
+
+The client reads Chromium/Electron command-line flags from:
+
+```text
+${XDG_CONFIG_HOME:-~/.config}/noname-electron-flags.conf
+```
+
+Use one flag per line. Empty lines and lines starting with `#` are ignored.
+
+```text
+# Example Wayland options
+--ozone-platform-hint=auto
+--enable-features=WaylandWindowDecorations
+```
 
 ## Latest libnoname release notes
 

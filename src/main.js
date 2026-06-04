@@ -13,6 +13,7 @@ const {
   pickEntryFile,
   startStaticServer: startLocalStaticServer
 } = require("./static-server");
+const { loadConfiguredFlags } = require("./flags");
 
 const APP_NAME = "无名杀";
 const APP_DIR_NAME = "noname-electron";
@@ -23,6 +24,7 @@ let currentGameDir = null;
 
 remoteMain.initialize();
 app.setName(APP_NAME);
+loadConfiguredFlags(app.commandLine);
 app.commandLine.appendSwitch("disable-features", "OutOfBlinkCors");
 app.commandLine.appendSwitch("disable-site-isolation-trials");
 
