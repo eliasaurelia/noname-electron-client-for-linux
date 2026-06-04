@@ -6,10 +6,12 @@ current stable Electron line, local user-data storage, and Linux package output.
 
 ## Versions
 
-- Electron: `42.3.1`
+- Electron: `42.3.3`
 - electron-builder: `26.8.1`
 - Targets: Debian package (`.deb`) and AppImage (`.AppImage`)
 - Tested host target: Debian GNU/Linux 13 `trixie`, x64
+- Dependency update in `1.0.6`: Electron was updated to the latest stable
+  `42.3.3`.
 - Dependency update in `1.0.5`: Electron was updated to the latest stable
   `42.3.1`; electron-builder and `@electron/remote` were checked and are
   already on their latest stable releases.
